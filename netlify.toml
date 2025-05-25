@@ -1,5 +1,5 @@
 [build]
-command = "react-router build"
+command = "npm install --legacy-peer-deps && react-router build"
 publish = "build/client"
 
 [dev]
