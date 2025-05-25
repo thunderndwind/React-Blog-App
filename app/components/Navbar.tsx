@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '~/context/AuthContext';
+import { getProfilePictureUrl } from '~/utils/imageUtils';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -51,7 +52,7 @@ export default function Navbar() {
                 <Link to="/profile" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                   <img
                     className="h-8 w-8 rounded-full object-cover border-2 border-blue-500"
-                    src={user?.profile_picture || 'https://via.placeholder.com/40'}
+                    src={getProfilePictureUrl(user?.profile_picture)}
                     alt={fullName}
                   />
                   <span className="text-gray-700 dark:text-gray-200 font-medium">{fullName}</span>
@@ -116,7 +117,7 @@ export default function Navbar() {
                 >
                   <img
                     className="h-8 w-8 rounded-full object-cover border-2 border-blue-500"
-                    src={user?.profile_picture || 'https://via.placeholder.com/40'}
+                    src={getProfilePictureUrl(user?.profile_picture)}
                     alt={fullName}
                   />
                   <span className="text-gray-700 dark:text-gray-200 font-medium">{fullName}</span>

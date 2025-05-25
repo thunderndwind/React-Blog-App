@@ -63,7 +63,7 @@ function EditPost() {
           
           if (post.image) {
             setImage(post.image);
-            setImagePreview(`https://ucarecdn.com/${post.image}/`);
+            setImagePreview(`${post.image}/`);
           }
         } else {
           setPostNotFound(true);
@@ -141,9 +141,9 @@ function EditPost() {
 
       // Make API request to update the post
       const response = await apiRequest<Post>(
-        `/posts/${id}/`, 
+        `/posts/${id}`, 
         {
-          method: 'PUT',
+          method: 'PATCH',
           body: JSON.stringify(postData),
         }
       );

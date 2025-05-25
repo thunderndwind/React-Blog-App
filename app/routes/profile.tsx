@@ -7,6 +7,7 @@ import type { Route } from './../+types/profile';
 import { ProfileHeaderSkeleton, ProfileStatsSkeleton } from '~/components/Skeleton';
 import { showError, showSuccess, showLoadingToast, updateToastSuccess } from '~/utils/toast';
 import { getPresignedUrl } from '~/utils/uploadService';
+import { getProfilePictureUrl, getImagePreviewUrl } from '~/utils/imageUtils';
 import ImageUploader from '~/components/ImageUploader';
 
 export function meta({}: Route.MetaArgs) {
@@ -57,7 +58,9 @@ function AvatarDisplay({
 }) {
   const [imageError, setImageError] = useState(false);
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  const shouldShowImage = src && !imageError;
+  
+  const displayUrl = getProfilePictureUrl(src);
+  const shouldShowImage = displayUrl && !imageError;
   
   const sizeClasses = {
     96: 'w-24 h-24 text-2xl',
@@ -69,7 +72,7 @@ function AvatarDisplay({
     <div className={`${sizeClasses[size as keyof typeof sizeClasses]} rounded-full border-4 border-blue-500 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center`}>
       {shouldShowImage ? (
         <img
-          src={src}
+          src={displayUrl}
           alt={`${firstName} ${lastName}`}
           className="w-full h-full object-cover"
           onError={() => setImageError(true)}
@@ -93,7 +96,7 @@ function ProfileContent() {
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [profilePicture, setProfilePicture] = useState<string | null>(user?.profile_picture || null);
-  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(user?.profile_picture || null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(getImagePreviewUrl(user?.profile_picture || null));
   const [uploadConfig, setUploadConfig] = useState<any>(null);
 
   // Fetch additional profile data
@@ -112,7 +115,7 @@ function ProfileContent() {
           setLastName(response.data.last_name);
           setBio(response.data.bio || '');
           setProfilePicture(response.data.profile_picture || null);
-          setProfilePicturePreview(response.data.profile_picture || null);
+          setProfilePicturePreview(getImagePreviewUrl(response.data.profile_picture));
         }
         
         // Get upload configuration for profile picture
@@ -140,7 +143,7 @@ function ProfileContent() {
       setLastName(user.last_name);
       setBio(user.bio || '');
       setProfilePicture(user.profile_picture || null);
-      setProfilePicturePreview(user.profile_picture || null);
+      setProfilePicturePreview(getImagePreviewUrl(user.profile_picture));
     }
   }, [user]);
 
@@ -213,13 +216,13 @@ function ProfileContent() {
       setLastName(profileData.last_name);
       setBio(profileData.bio || '');
       setProfilePicture(profileData.profile_picture || null);
-      setProfilePicturePreview(profileData.profile_picture || null);
+      setProfilePicturePreview(getImagePreviewUrl(profileData.profile_picture));
     } else if (user) {
       setFirstName(user.first_name);
       setLastName(user.last_name);
       setBio(user.bio || '');
       setProfilePicture(user.profile_picture || null);
-      setProfilePicturePreview(user.profile_picture || null);
+      setProfilePicturePreview(getImagePreviewUrl(user.profile_picture));
     }
     setIsEditing(false);
   };
