@@ -5,7 +5,7 @@ import { useAuth } from '~/context/AuthContext';
 import PublicOnlyRoute from '~/components/PublicOnlyRoute';
 import type { Route } from "./../+types/login";
 import FormErrorMessage from '~/components/FormErrorMessage';
-import { showError } from '~/utils/toast';
+import { showError, showSuccess, showLoadingToast, updateToastError, updateToastSuccess } from '~/utils/toast';
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -75,13 +75,74 @@ function LoginForm() {
     }
   };
 
+  const getErrorMessage = (error: any): string => {
+    // Handle different types of authentication errors
+    if (error.status === 401 || error.status === 400) {
+      // Invalid credentials
+      if (error.message?.toLowerCase().includes('invalid') || 
+          error.message?.toLowerCase().includes('incorrect') ||
+          error.message?.toLowerCase().includes('wrong') ||
+          error.errors?.non_field_errors?.some((msg: string) => 
+            msg.toLowerCase().includes('invalid') || 
+            msg.toLowerCase().includes('incorrect') ||
+            msg.toLowerCase().includes('unable to log in')
+          )) {
+        return 'Invalid username or password. Please check your credentials and try again.';
+      }
+      
+      // Account related issues
+      if (error.message?.toLowerCase().includes('inactive') ||
+          error.message?.toLowerCase().includes('disabled')) {
+        return 'Your account has been deactivated. Please contact support for assistance.';
+      }
+      
+      if (error.message?.toLowerCase().includes('locked') ||
+          error.message?.toLowerCase().includes('suspended')) {
+        return 'Your account has been temporarily locked. Please try again later or contact support.';
+      }
+    }
+    
+    // Network or server errors
+    if (error.status >= 500) {
+      return 'Server error occurred. Please try again in a few moments.';
+    }
+    
+    if (error.status === 403) {
+      return 'Access denied. Please check your credentials or contact support.';
+    }
+    
+    if (error.status === 429) {
+      return 'Too many login attempts. Please wait a few minutes before trying again.';
+    }
+    
+    // CSRF or security related errors
+    if (error.code === 'csrf_error' || error.message?.toLowerCase().includes('csrf')) {
+      return 'Security token expired. Please refresh the page and try again.';
+    }
+    
+    // Network connectivity issues
+    if (!error.status && (error.message?.toLowerCase().includes('network') || 
+                          error.message?.toLowerCase().includes('fetch'))) {
+      return 'Network connection error. Please check your internet connection and try again.';
+    }
+    
+    // Default error message
+    return error.message || 'Login failed. Please try again.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Perform form validation
     const formErrors: Record<string, string[]> = {};
-    if (!username.trim()) formErrors.username = ['Username is required'];
-    if (!password.trim()) formErrors.password = ['Password is required'];
+    if (!username.trim()) {
+      formErrors.username = ['Username is required'];
+      showError('Please enter your username');
+    }
+    if (!password.trim()) {
+      formErrors.password = ['Password is required'];
+      showError('Please enter your password');
+    }
     
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
@@ -91,19 +152,48 @@ function LoginForm() {
     setIsSubmitting(true);
     setErrors({});
 
+    // Show loading toast
+    const toastId = showLoadingToast('Signing you in...');
+
     try {
       await login(username, password);
-      navigate('/');
+      
+      // Success feedback
+      updateToastSuccess(toastId, `Welcome back, ${username}!`);
+      
+      // Small delay to show success message before navigation
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
+      
     } catch (error: any) {
-      // Handle API error responses
+      console.error('Login error:', error);
+      
+      // Get appropriate error message
+      const errorMessage = getErrorMessage(error);
+      
+      // Update loading toast with error
+      updateToastError(toastId, errorMessage);
+      
+      // Handle form field errors
       if (error.errors) {
         setErrors(error.errors);
-      } else if (error.message) {
-        showError(error.message);
-        setErrors({ form: [error.message] });
+        
+        // Show specific field errors in toasts
+        Object.entries(error.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages) && messages.length > 0) {
+            const fieldName = field === 'non_field_errors' ? 'Login' : field.charAt(0).toUpperCase() + field.slice(1);
+            showError(`${fieldName}: ${messages[0]}`);
+          }
+        });
       } else {
-        showError('Login failed. Please try again.');
-        setErrors({ form: ['Login failed. Please try again.'] });
+        // Set form error for display
+        setErrors({ form: [errorMessage] });
+      }
+      
+      // Clear password field for security on certain errors
+      if (error.status === 401 || error.status === 400) {
+        setPassword('');
       }
     } finally {
       setIsSubmitting(false);
@@ -145,6 +235,7 @@ function LoginForm() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className={`appearance-none block w-full px-3 py-2 border ${errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white ${isSubmitting ? 'bg-gray-100 dark:bg-gray-600' : ''}`}
+                  placeholder="Enter your username"
                 />
               </div>
               {errors.username && <FormErrorMessage errors={errors.username} />}
@@ -166,6 +257,7 @@ function LoginForm() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className={`appearance-none block w-full px-3 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white ${isSubmitting ? 'bg-gray-100 dark:bg-gray-600' : ''}`}
+                  placeholder="Enter your password"
                 />
               </div>
               {errors.password && <FormErrorMessage errors={errors.password} />}
@@ -175,7 +267,7 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
               >
                 {isSubmitting ? (
                   <>
@@ -189,6 +281,15 @@ function LoginForm() {
               </button>
             </div>
           </form>
+          
+          {/* Additional help text */}
+          <div className="mt-6">
+            <div className="text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Having trouble signing in? Make sure your username and password are correct.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
